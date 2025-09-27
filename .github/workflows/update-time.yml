@@ -2,68 +2,47 @@ name: Update Taipei Time JSON
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # 每 5 分鐘觸發一次
-  workflow_dispatch:        # 允許手動執行
+    - cron: "*5 * * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
+      - uses: actions/checkout@v4
       - name: Generate now.json
         run: |
           node -e '
           const fs = require("fs");
-          // 取得 UTC 現在時間
           const nowUtc = new Date();
-
-          // 生成台北時間（用 Intl 指定時區）
-          const tz = "Asia/Taipei";
-          const taipeiIso = new Intl.DateTimeFormat("zh-TW", {
-            timeZone: tz,
-            year: "numeric", month: "2-digit", day: "2-digit",
-            hour: "2-digit", minute: "2-digit", second: "2-digit",
-            hour12: false
-          }).format(nowUtc)
-           // 轉成 ISO 風格：YYYY-MM-DDTHH:mm:ss+08:00
-           .replace(/\//g, "-")
-           .replace(" ", "T");
-
-          // 取得 UTC ISO 與 UNIX 秒
-          const generatedUtc = nowUtc.toISOString();
-          const unix = Math.floor(nowUtc.getTime() / 1000);
-
-          // 也輸出一個台北顯示字串
-          const generatedTaipei = taipeiIso + "+08:00";
-
+          const pad = n=>String(n).padStart(2,"0");
+          const tzOffset = "+08:00";
+          const y = nowUtc.getUTCFullYear();
+          const m = pad(nowUtc.getUTCMonth()+1);
+          const d = pad(nowUtc.getUTCDate());
+          const hh = pad((nowUtc.getUTCHours()+8)%24);
+          const mm = pad(nowUtc.getUTCMinutes());
+          const ss = pad(nowUtc.getUTCSeconds());
+          const taipeiIso = `${y}-${m}-${d}T${hh}:${mm}:${ss}${tzOffset}`;
           const payload = {
             source: "GitHub Actions (cron)",
             timezone: "Asia/Taipei",
-            taipei_iso: generatedTaipei,
-            unix,
-            generated_utc: generatedUtc,
-            generated_taipei: generatedTaipei,
+            taipei_iso: taipeiIso,
+            unix: Math.floor(nowUtc.getTime()/1000),
+            generated_utc: nowUtc.toISOString(),
+            generated_taipei: taipeiIso,
             version: "1.0.0"
           };
-
-          fs.writeFileSync("now.json", JSON.stringify(payload, null, 2));
-          console.log("Updated now.json =>", payload);
+          fs.writeFileSync("now.json", JSON.stringify(payload,null,2));
+          console.log(payload);
           '
-
       - name: Commit & Push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add now.json
-          git commit -m "chore: update time JSON [skip ci]" || echo "No changes to commit"
+          git commit -m "auto: update now.json" || echo "No changes"
           git push
