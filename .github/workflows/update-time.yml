@@ -6,7 +6,7 @@ on:
   workflow_dispatch:          # 也可手動按
 
 permissions:
-  contents: write             # 允許推回 repo
+  contents: write
 
 jobs:
   update:
@@ -15,33 +15,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0      # 保險，避免淺克隆造成推送問題
+          fetch-depth: 0
 
-      - name: Generate now.json (bash only)
+      - name: Generate now.json (bash only; no heredoc)
         run: |
           set -e
-          # 取 UTC 與台北時間
           UTC_NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           TPE_NOW=$(TZ=Asia/Taipei date +"%Y-%m-%dT%H:%M:%S%z")
-          # 轉成 +08:00 形式
           TPE_NOW_ISO="${TPE_NOW:0:22}:${TPE_NOW:22:2}"
-          # UNIX 秒
           UNIX_TS=$(date -u +%s)
-          # 也寫入這次 workflow 的 runId 當作 nonce，確保每次一定不同
-          RUN_ID=${GITHUB_RUN_ID}
+          RUN_ID="${GITHUB_RUN_ID}"
 
-          cat > now.json <<JSON
-{
-  "source": "GitHub Actions (cron)",
-  "timezone": "Asia/Taipei",
-  "taipei_iso": "${TPE_NOW_ISO}",
-  "unix": ${UNIX_TS},
-  "generated_utc": "${UTC_NOW}",
-  "generated_taipei": "${TPE_NOW_ISO}",
-  "run_id": "${RUN_ID}",
-  "version": "1.0.1"
-}
-JSON
+          printf '%s\n' \
+            '{' \
+            '  "source": "GitHub Actions (cron)",' \
+            '  "timezone": "Asia/Taipei",' \
+            "  \"taipei_iso\": \"${TPE_NOW_ISO}\"," \
+            "  \"unix\": ${UNIX_TS}," \
+            "  \"generated_utc\": \"${UTC_NOW}\"," \
+            "  \"generated_taipei\": \"${TPE_NOW_ISO}\"," \
+            "  \"run_id\": \"${RUN_ID}\"," \
+            '  "version": "1.0.1"' \
+            '}' > now.json
 
           echo "===== now.json ====="
           cat now.json
@@ -52,7 +47,4 @@ JSON
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add now.json
-          # 先拉一下避免偶發衝突
           git pull --rebase || true
-          git commit -m "auto: update now.json (run $GITHUB_RUN_ID)" || echo "No changes"
-          git push
