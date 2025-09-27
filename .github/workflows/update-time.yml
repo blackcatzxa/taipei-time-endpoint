@@ -2,47 +2,57 @@ name: Update Taipei Time JSON
 
 on:
   schedule:
-    - cron: "*5 * * * *"
-  workflow_dispatch:
+    - cron: "*/5 * * * *"     # 每 5 分鐘自動
+  workflow_dispatch:          # 也可手動按
 
 permissions:
-  contents: write
+  contents: write             # 允許推回 repo
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Generate now.json
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # 保險，避免淺克隆造成推送問題
+
+      - name: Generate now.json (bash only)
         run: |
-          node -e '
-          const fs = require("fs");
-          const nowUtc = new Date();
-          const pad = n=>String(n).padStart(2,"0");
-          const tzOffset = "+08:00";
-          const y = nowUtc.getUTCFullYear();
-          const m = pad(nowUtc.getUTCMonth()+1);
-          const d = pad(nowUtc.getUTCDate());
-          const hh = pad((nowUtc.getUTCHours()+8)%24);
-          const mm = pad(nowUtc.getUTCMinutes());
-          const ss = pad(nowUtc.getUTCSeconds());
-          const taipeiIso = `${y}-${m}-${d}T${hh}:${mm}:${ss}${tzOffset}`;
-          const payload = {
-            source: "GitHub Actions (cron)",
-            timezone: "Asia/Taipei",
-            taipei_iso: taipeiIso,
-            unix: Math.floor(nowUtc.getTime()/1000),
-            generated_utc: nowUtc.toISOString(),
-            generated_taipei: taipeiIso,
-            version: "1.0.0"
-          };
-          fs.writeFileSync("now.json", JSON.stringify(payload,null,2));
-          console.log(payload);
-          '
+          set -e
+          # 取 UTC 與台北時間
+          UTC_NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          TPE_NOW=$(TZ=Asia/Taipei date +"%Y-%m-%dT%H:%M:%S%z")
+          # 轉成 +08:00 形式
+          TPE_NOW_ISO="${TPE_NOW:0:22}:${TPE_NOW:22:2}"
+          # UNIX 秒
+          UNIX_TS=$(date -u +%s)
+          # 也寫入這次 workflow 的 runId 當作 nonce，確保每次一定不同
+          RUN_ID=${GITHUB_RUN_ID}
+
+          cat > now.json <<JSON
+{
+  "source": "GitHub Actions (cron)",
+  "timezone": "Asia/Taipei",
+  "taipei_iso": "${TPE_NOW_ISO}",
+  "unix": ${UNIX_TS},
+  "generated_utc": "${UTC_NOW}",
+  "generated_taipei": "${TPE_NOW_ISO}",
+  "run_id": "${RUN_ID}",
+  "version": "1.0.1"
+}
+JSON
+
+          echo "===== now.json ====="
+          cat now.json
+
       - name: Commit & Push
         run: |
-          git config user.name "github-actions[bot]"
+          set -e
+          git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add now.json
-          git commit -m "auto: update now.json" || echo "No changes"
+          # 先拉一下避免偶發衝突
+          git pull --rebase || true
+          git commit -m "auto: update now.json (run $GITHUB_RUN_ID)" || echo "No changes"
           git push
