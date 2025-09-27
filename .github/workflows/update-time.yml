@@ -46,5 +46,11 @@ jobs:
           set -e
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # 先讓 pull 時自動 stash 目前未提交的變更（now.json）
+          git -c rebase.autoStash=true pull --rebase || true
+
           git add now.json
-          git pull --rebase || true
+          git commit -m "auto: update now.json (run $GITHUB_RUN_ID)" || echo "No changes"
+          git push
+
