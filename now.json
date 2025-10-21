@@ -1,18 +1,10 @@
 {
   "source": "GitHub Actions (cron)",
   "timezone": "Asia/Taipei",
-<<<<<<< Updated upstream
-  "taipei_iso": "2025-10-21T17:56:11+08:00",
-  "unix": 1761040571,
-  "generated_utc": "2025-10-21T09:56:11Z",
-  "generated_taipei": "2025-10-21T17:56:11+08:00",
-  "run_id": "18679884005",
-=======
-  "taipei_iso": "2025-10-21T17:56:14+08:00",
-  "unix": 1761040574,
-  "generated_utc": "2025-10-21T09:56:14Z",
-  "generated_taipei": "2025-10-21T17:56:14+08:00",
-  "run_id": "18680063709",
->>>>>>> Stashed changes
+  "taipei_iso": "2025-10-21T18:16:54+08:00",
+  "unix": 1761041814,
+  "generated_utc": "2025-10-21T10:16:54Z",
+  "generated_taipei": "2025-10-21T18:16:54+08:00",
+  "run_id": "18680594492",
   "version": "1.0.1"
 }
